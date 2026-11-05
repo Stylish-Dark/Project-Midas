@@ -366,6 +366,7 @@ static s32 bindModeIsN64(void)
  * device 0 shows. A pad has no pointer to free, so its lists never see them. */
 static const struct PortBindDef sBindsKbmOnly[] = {
     { "Mouse Unlock\n",      "mouse_unlock",   NULL             },
+    { "Fast Forward (4x)\n", "fast_forward",   NULL             },
 };
 #define PORTBIND_KBM_EXTRA ((s32) (sizeof(sBindsKbmOnly) / sizeof(sBindsKbmOnly[0])))
 
