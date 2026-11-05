@@ -2063,7 +2063,7 @@ static s32 s_FastForwardHeld;
 s32 portVideoFastForwardHeld(void)
 {
     extern s32 checkGamePaused(void);
-    return s_VideoInitDone && s_FastForwardHeld && videoHasFocus()
+    return s_VideoInitDone && s_FastForwardHeld && SDL_GetKeyboardFocus() != NULL
         && portStageRunning() && !checkGamePaused();
 }
 
