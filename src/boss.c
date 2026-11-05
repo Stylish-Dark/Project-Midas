@@ -595,7 +595,11 @@ void bossMainloop(void)
                     {
                         // wait for a later retrace.
                     }
-                    else if (portTickHwPace() &&
+                    else if (
+#ifdef GE_VIDEO
+                             !portVideoFastForwardHeld() &&
+#endif
+                             portTickHwPace() &&
                              mainTickElapsed < (u32) portHwPaceFields() * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U))
                     {
                         /* tickhz=hw: hold the frame for the fields the N64 would have
