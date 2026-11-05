@@ -591,6 +591,9 @@ void bossMainloop(void)
                      * recorded with its input block has elapsed, otherwise the
                      * replay fast-forwards at the PC's 60Hz tick rate. */
                     if (get_is_ramrom_flag() != 0 &&
+#ifdef GE_VIDEO
+                        !portVideoFastForwardHeld() &&
+#endif
                         mainTickElapsed < (u32) portRamromPendingSpeedframes() * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U))
                     {
                         // wait for a later retrace.
