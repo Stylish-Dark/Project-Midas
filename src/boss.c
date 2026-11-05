@@ -59,6 +59,10 @@ u32 g_PortTicksAdmitted;           /* count of admitted sim ticks (title.c steps
  */
 static s32 portTickClampTo60(void)
 {
+#ifdef GE_VIDEO
+    /* The user's hold-to-4x overrides the normal front-end/watch 60Hz hold. */
+    if (portVideoFastForwardHeld()) return 0;
+#endif
     if (lvlGetCurrentStageToLoad() == LEVELID_TITLE && get_currentmenu() < MENU_FILE_SELECT)
     {
         return 1;
@@ -603,7 +607,11 @@ void bossMainloop(void)
                      * 30 ticks/s as authored (title.c ticks the walk anim twice
                      * per rendered frame), using the same 2-vsync hold as a
                      * demo block. */
-                    else if (get_currentmenu() == MENU_EYE_INTRO && portGunbarrelClampPhase() &&
+                    else if (
+#ifdef GE_VIDEO
+                        !portVideoFastForwardHeld() &&
+#endif
+                        get_currentmenu() == MENU_EYE_INTRO && portGunbarrelClampPhase() &&
                         (portTickHz() == 60
                             ? mainTickElapsed < 2U * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U)
                             : !portTickIntroPaceDue(2)))
