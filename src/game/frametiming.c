@@ -1,5 +1,8 @@
 #include <ultra64.h>
 #include "frametiming.h"
+#ifdef GE_VIDEO
+extern s32 portVideoFastForwardHeld(void);
+#endif
 
 // data
 s32 lastFrameCounter = -1;
@@ -308,7 +311,14 @@ u32 portTickGateCounts(void)
         hz = 1000;
     }
 
-    return (PORT_TICK_FIELD_COUNTS * 60u / (u32) hz) / 2u;
+    {
+        u32 gate = (PORT_TICK_FIELD_COUNTS * 60u / (u32) hz) / 2u;
+#ifdef GE_VIDEO
+        extern s32 portVideoFastForwardHeld(void);
+        if (portVideoFastForwardHeld()) gate /= 4u;
+#endif
+        return gate ? gate : 1u;
+    }
 }
 
 /* ---- Sub-field SMOOTHING ----------------------------------------------
@@ -1121,7 +1131,11 @@ void waitForNextFrame(void) //maybe WaitForTick
   u32 nextFrameTime; //next frame time?
 
 #ifndef TARGET_N64
-  if (portTickHz() != 60)
+  if (portTickHz() != 60
+#ifdef GE_VIDEO
+      || portVideoFastForwardHeld()
+#endif
+      )
   {
       /* Any tick rate other than 60: from one elapsed-time reading, derive
        * the fractional delta (portTickDelta) and the whole fields done, with
@@ -1130,6 +1144,10 @@ void waitForNextFrame(void) //maybe WaitForTick
       u32 now = osGetCount();
       u32 elapsed = now - copy_of_osgetcount_value_1;
       s32 whole;
+#ifdef GE_VIDEO
+      { extern s32 portVideoFastForwardHeld(void);
+        if (portVideoFastForwardHeld()) elapsed *= 4u; }
+#endif
 
       frameDelay = 1;
 

@@ -130,7 +130,7 @@ static int s_CfgMpHeadRoll = 1;     /* [display] mp_head_roll: the camera rolls 
 static int s_CfgMpUnlimitedExplosions = 1; /* [display] mp_unlimited_explosions: 100 live explosions, not 6, 2+ players (explosion.c) */
 static int s_CfgUnlimitedExplosions = 1;   /* [display] unlimited_explosions: the same, solo (Port Options, default ON) */
 static int s_CfgWatchStatic = 1;
-static int s_CfgFastPause = 0;     /* [display] fast_pause: the watch opens and closes at Rare's top speed (bondview2.c) */
+static int s_CfgFastPause = 1;     /* [display] fast_pause: the watch opens and closes at Rare's top speed (bondview2.c) */
 static int s_CfgMouseAutoAim = 0;   /* [display] mouse_auto_aim: 1 lets a mouse player use Auto-Aim (default: never) */
 static int s_CfgMuteUnfocused = 0; /* [display] mute_unfocused: audio_pc.c plays silence while the window has no focus */
 static int s_CfgArmorHud = 0;       /* [display] armor_hud: the health / armour arcs show on a body armour pickup (bondview2.c) */
@@ -2010,6 +2010,7 @@ enum {
      * keys, so binding W to move forward also bound it to look up; a pad has
      * separate move_* and look_* rows, and now the keyboard does too. */
     BIND_LOOK_UP, BIND_LOOK_DOWN, BIND_LOOK_LEFT, BIND_LOOK_RIGHT,
+    BIND_FAST_FORWARD, /* PC-only hold action; does not generate N64 buttons */
     BIND_COUNT
 };
 
@@ -2051,9 +2052,20 @@ static const struct {
     [BIND_LOOK_DOWN]    = { "look_down",    0,          "" },
     [BIND_LOOK_LEFT]    = { "look_left",    0,          "" },
     [BIND_LOOK_RIGHT]   = { "look_right",   0,          "" },
+    [BIND_FAST_FORWARD] = { "fast_forward", 0,          "/" },
 };
 
 static SDL_Scancode sBindings[BIND_COUNT][BIND_MAX_KEYS];
+
+/* Live key state is sampled by the SDL input pump; the scheduler consumes the
+ * same filtered binding, not a hard-coded scancode. Releasing restores 1x. */
+static s32 s_FastForwardHeld;
+s32 portVideoFastForwardHeld(void)
+{
+    extern s32 checkGamePaused(void);
+    return s_VideoInitDone && s_FastForwardHeld && SDL_GetKeyboardFocus() != NULL
+        && portStageRunning() && !checkGamePaused();
+}
 
 /* 1 = the key is one of the Move keys (analog_up / down / left / right) */
 static int videoKeyIsMoveKey(SDL_Scancode sc)
@@ -4190,6 +4202,7 @@ void videoGetPad(OSContPad *pad)
 
     if (s_VideoInitDone && noinput)
     {
+        s_FastForwardHeld = 0;
         u8 pdown[PORT_BIND_MAX];
         SDL_memset(pdown, 0, sizeof(pdown));
         if (getenv("GE_AUTOWHEEL") != NULL)
@@ -4502,6 +4515,7 @@ void videoGetPad(OSContPad *pad)
             extern s32 portInputPadIsN64(s32 slot);
             slotN64 = portInputPadIsN64(0);
         }
+        s_FastForwardHeld = 0;
         for (i = 0; i < BIND_COUNT; i++)
         {
             int down = 0;
@@ -4517,6 +4531,11 @@ void videoGetPad(OSContPad *pad)
                     }
                     break;
                 }
+            }
+            if (i == BIND_FAST_FORWARD)
+            {
+                s_FastForwardHeld = down;
+                continue;
             }
             if (!down)
             {

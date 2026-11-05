@@ -4,6 +4,9 @@
 #include <bondconstants.h>
 #include <bondgame.h>
 #include "boss.h"
+#ifdef GE_VIDEO
+extern s32 portVideoFastForwardHeld(void);
+#endif
 #include "deb.h"
 #include "debugmenu.h"
 #include "game/dyn.h"
@@ -638,8 +641,13 @@ void bossMainloop(void)
                      * tick rate so high refresh rates don't randomly drop
                      * ticks; tickhz=60 keeps the vanilla constant and uncapped
                      * admits every retrace. */
-                    if (mainTickElapsed < ((portTickHz() == 60) ? (u32) (MAIN_LOOP_TICK_INTERVAL)
-                                                                : portTickGateCounts()))
+                    if (mainTickElapsed < ((portTickHz() == 60) ?
+#ifdef GE_VIDEO
+                              (portVideoFastForwardHeld() ? (u32) (MAIN_LOOP_TICK_INTERVAL / 4u) : (u32) MAIN_LOOP_TICK_INTERVAL)
+#else
+                              (u32) MAIN_LOOP_TICK_INTERVAL
+#endif
+                              : portTickGateCounts()))
 #else
                     if (mainTickElapsed < MAIN_LOOP_TICK_INTERVAL)
 #endif
