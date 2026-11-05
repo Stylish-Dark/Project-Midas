@@ -2052,7 +2052,7 @@ static const struct {
     [BIND_LOOK_DOWN]    = { "look_down",    0,          "" },
     [BIND_LOOK_LEFT]    = { "look_left",    0,          "" },
     [BIND_LOOK_RIGHT]   = { "look_right",   0,          "" },
-    [BIND_FAST_FORWARD] = { "fast_forward", 0,          "/" },
+    [BIND_FAST_FORWARD] = { "fast_forward", 0,          "Slash" },
 };
 
 static SDL_Scancode sBindings[BIND_COUNT][BIND_MAX_KEYS];
