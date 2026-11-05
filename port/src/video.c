@@ -2062,9 +2062,9 @@ static SDL_Scancode sBindings[BIND_COUNT][BIND_MAX_KEYS];
 static s32 s_FastForwardHeld;
 s32 portVideoFastForwardHeld(void)
 {
-    extern s32 checkGamePaused(void);
-    return s_VideoInitDone && s_FastForwardHeld && SDL_GetKeyboardFocus() != NULL
-        && portStageRunning() && !checkGamePaused();
+    /* Fast-forward is a global simulation-speed control, not a movement boost.
+     * It must work in the front-end and watch as well as during missions. */
+    return s_VideoInitDone && s_FastForwardHeld && SDL_GetKeyboardFocus() != NULL;
 }
 
 /* 1 = the key is one of the Move keys (analog_up / down / left / right) */
