@@ -4,6 +4,9 @@
 #include <bondconstants.h>
 #include <bondgame.h>
 #include "boss.h"
+#ifdef GE_VIDEO
+extern s32 portVideoFastForwardHeld(void);
+#endif
 #include "deb.h"
 #include "debugmenu.h"
 #include "game/dyn.h"
@@ -56,6 +59,10 @@ u32 g_PortTicksAdmitted;           /* count of admitted sim ticks (title.c steps
  */
 static s32 portTickClampTo60(void)
 {
+#ifdef GE_VIDEO
+    /* The user's hold-to-4x overrides the normal front-end/watch 60Hz hold. */
+    if (portVideoFastForwardHeld()) return 0;
+#endif
     if (lvlGetCurrentStageToLoad() == LEVELID_TITLE && get_currentmenu() < MENU_FILE_SELECT)
     {
         return 1;
@@ -584,11 +591,18 @@ void bossMainloop(void)
                      * recorded with its input block has elapsed, otherwise the
                      * replay fast-forwards at the PC's 60Hz tick rate. */
                     if (get_is_ramrom_flag() != 0 &&
+#ifdef GE_VIDEO
+                        !portVideoFastForwardHeld() &&
+#endif
                         mainTickElapsed < (u32) portRamromPendingSpeedframes() * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U))
                     {
                         // wait for a later retrace.
                     }
-                    else if (portTickHwPace() &&
+                    else if (
+#ifdef GE_VIDEO
+                             !portVideoFastForwardHeld() &&
+#endif
+                             portTickHwPace() &&
                              mainTickElapsed < (u32) portHwPaceFields() * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U))
                     {
                         /* tickhz=hw: hold the frame for the fields the N64 would have
@@ -600,7 +614,11 @@ void bossMainloop(void)
                      * 30 ticks/s as authored (title.c ticks the walk anim twice
                      * per rendered frame), using the same 2-vsync hold as a
                      * demo block. */
-                    else if (get_currentmenu() == MENU_EYE_INTRO && portGunbarrelClampPhase() &&
+                    else if (
+#ifdef GE_VIDEO
+                        !portVideoFastForwardHeld() &&
+#endif
+                        get_currentmenu() == MENU_EYE_INTRO && portGunbarrelClampPhase() &&
                         (portTickHz() == 60
                             ? mainTickElapsed < 2U * (CYCLES_PER_FRAME - 6450U) - (INTERVAL_INTER_MATH - 3225U)
                             : !portTickIntroPaceDue(2)))
@@ -638,8 +656,13 @@ void bossMainloop(void)
                      * tick rate so high refresh rates don't randomly drop
                      * ticks; tickhz=60 keeps the vanilla constant and uncapped
                      * admits every retrace. */
-                    if (mainTickElapsed < ((portTickHz() == 60) ? (u32) (MAIN_LOOP_TICK_INTERVAL)
-                                                                : portTickGateCounts()))
+                    if (mainTickElapsed < ((portTickHz() == 60) ?
+#ifdef GE_VIDEO
+                              (portVideoFastForwardHeld() ? (u32) (MAIN_LOOP_TICK_INTERVAL / 4u) : (u32) MAIN_LOOP_TICK_INTERVAL)
+#else
+                              (u32) MAIN_LOOP_TICK_INTERVAL
+#endif
+                              : portTickGateCounts()))
 #else
                     if (mainTickElapsed < MAIN_LOOP_TICK_INTERVAL)
 #endif

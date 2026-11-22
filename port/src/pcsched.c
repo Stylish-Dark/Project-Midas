@@ -698,6 +698,10 @@ void portPumpEvents(void)
         /* The pump is the tick source, so GE_TICKHZ sets the interval of the
          * same absolute schedule; tickhz=0 (uncapped) skips pacing. */
         long long pacehz = (long long) portTickHz();
+        s32 fastforward = 0;
+#ifdef GE_VIDEO
+        { extern s32 portVideoFastForwardHeld(void); fastforward = portVideoFastForwardHeld(); }
+#endif
 
         if (pacehz <= 0)
         {
@@ -706,7 +710,11 @@ void portPumpEvents(void)
         /* vsync lock: may raise pacehz to just above the display; vwait =
          * the pipeline is full, so a finished frame ends the sleep */
         const long long gatehz = pacehz; /* boss.c's tick gate stays at tickhz */
-        const s32 vlock = portVsyncLock(pacehz, &pacehz);
+        /* Four real simulation/render pumps per normal wall-clock interval.
+         * The gate and simulation delta remain unchanged: gameplay accelerates
+         * rather than physics stepping four times farther in one tick. */
+        if (fastforward) pacehz *= 4;
+        const s32 vlock = !fastforward && portVsyncLock(pacehz, &pacehz);
         const s32 vwait = vlock && portVsyncLockFull();
         portVsyncLockDbg(vlock, vwait, pacehz);
 #ifdef _WIN32

@@ -11490,6 +11490,15 @@ void bondviewMovePlayerUpdateViewport(s8 stick_x, s8 stick_y, u16 buttons)
 
     if (g_CurrentPlayer->bonddead)
     {
+#ifndef TARGET_N64
+        /* A fresh Start press after death skips the blood, fade and replay
+         * directly to the normal title/mission-results flow. Multiplayer
+         * death/respawn handling remains untouched. */
+        if (getPlayerCount() == 1 && (buttons & ~oldbuttons & START_BUTTON))
+        {
+            bossRunTitleStage();
+        }
+#endif
         if (g_CurrentPlayer->redbloodfinished == FALSE)
         {
             currentPlayerEquipWeaponWrapper(GUNLEFT, 0);
