@@ -4137,6 +4137,16 @@ Gfx *draw_watch_mission_status_page(Gfx *gdl, Mtx *param_2)
 
 void sub_GAME_7F0A8378(void)
 {
+#ifndef TARGET_N64
+    extern s32 portWatchUsesInstantClose(void);
+
+    /* Start closes the fast watch. A/Z and the keyboard confirm binding
+     * still select the highlighted item. */
+    if (portWatchUsesInstantClose() && g_CurrentPlayer->open_close_solo_watch_menu)
+    {
+        return;
+    }
+#endif
 #ifdef GE_VIDEO
     if (portWatchTakeClick())
     {
@@ -4148,6 +4158,12 @@ void sub_GAME_7F0A8378(void)
         {
             return;
         }
+#ifndef TARGET_N64
+        if (portWatchUsesInstantClose() && !portReturnStartThisTick())
+        {
+            return; /* Start may have dismissed a modal instead of closing. */
+        }
+#endif
 
         if (getCurrentPlayerWeaponId(0) == bondinvGetTextbyInvIndex(g_curWatchItemIndex))
         {

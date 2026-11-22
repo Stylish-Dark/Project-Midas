@@ -1329,6 +1329,13 @@ void sub_GAME_7F05DAE4(GUNHAND hand) {
 }
 
 #ifndef TARGET_N64
+static u32 sWatchInventoryHands;
+
+void portGunBeginWatch(void)
+{
+    sWatchInventoryHands = 0;
+}
+
 static void portGunLoadHandModelNow(GUNHAND hand, ITEM_IDS item)
 {
     if (g_CurrentPlayer->lock_hand_model[hand])
@@ -1338,12 +1345,14 @@ static void portGunLoadHandModelNow(GUNHAND hand, ITEM_IDS item)
 
     if (g_CurrentPlayer->hand_item[hand] != item)
     {
+        g_CurrentPlayer->field_2A44[hand] = item;
         g_CurrentPlayer->hand_invisible[hand] = -3;
         used_to_load_1st_person_model_on_demand(hand);
     }
     else
     {
-        g_CurrentPlayer->hand_invisible[hand] = 0;
+        /* A loaded model is drawable only while this value is positive. */
+        g_CurrentPlayer->hand_invisible[hand] = 1;
         g_CurrentPlayer->field_2A44[hand] = -1;
     }
 }
@@ -1358,12 +1367,15 @@ void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item)
 void portGunRestoreWatchModel(GUNHAND hand)
 {
     struct hand *state = &g_CurrentPlayer->hands[hand];
+    const ITEM_IDS item = getCurrentPlayerWeaponId(hand);
+    const s32 selectedInWatch = (sWatchInventoryHands & (1u << hand)) != 0;
 
-    if (state->weapon_current_animation == 0xE)
+    sWatchInventoryHands &= ~(1u << hand);
+    if (selectedInWatch || state->weapon_current_animation == GUN_ANIM_STATE_WATCH_LOWER)
     {
         state->weapon_current_animation = 0;
     }
-    if (state->weapon_action_state == GUN_ANIM_STATE_WATCH_LOWER
+    if (selectedInWatch || state->weapon_action_state == GUN_ANIM_STATE_WATCH_LOWER
         || state->weapon_action_state == GUN_ANIM_STATE_WATCH_SWAP
         || state->weapon_action_state == GUN_ANIM_STATE_WATCH_RAISE)
     {
@@ -1373,12 +1385,16 @@ void portGunRestoreWatchModel(GUNHAND hand)
         state->field_92C = 0;
     }
 
-    if (state->weaponnum_watchmenu >= 0)
-    {
-        const ITEM_IDS item = getCurrentPlayerWeaponId(hand);
+    sub_GAME_7F05DAE4(hand);
+    portGunLoadHandModelNow(hand, item);
 
-        sub_GAME_7F05DAE4(hand);
-        portGunLoadHandModelNow(hand, item);
+    /* Run the stock raise animation's equip step when the inventory
+     * changed the weapon. Ordinary unpause keeps the existing magazine. */
+    if (selectedInWatch && item != ITEM_UNARMED && item < ITEM_BOMBCASE
+        && !g_CurrentPlayer->lock_hand_model[hand])
+    {
+        sub_GAME_7F0649D8(hand);
+        g_CurrentPlayer->trigger_released = 0;
     }
 }
 #endif
@@ -1391,6 +1407,13 @@ void currentPlayerUnEquipWeaponWrapper(enum GUNHAND hand, enum ITEM_IDS weapid)
 
     weapon_num = g_CurrentPlayer->hands[hand].weaponnum;
     ammo_type = get_ammo_type_for_weapon(weapon_num);
+
+#ifndef TARGET_N64
+    if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5)
+    {
+        sWatchInventoryHands |= 1u << hand;
+    }
+#endif
 
     if (g_CurrentPlayer->hands[hand].weaponnum_watchmenu < 0)
     {

@@ -3811,7 +3811,7 @@ static s32 bondviewFastPause(void)
     return g_ramromRecordFlag == 0 && portFastPause();
 }
 
-static s32 portWatchUsesInstantClose(void)
+s32 portWatchUsesInstantClose(void)
 {
     return sPortWatchOpenedInstantly || bondviewFastPause();
 }
@@ -4987,7 +4987,6 @@ static s32 portCanOpenWatchImmediately(void)
 
 static void portOpenWatchImmediately(void)
 {
-    extern void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item);
     const ITEM_IDS right = getCurrentPlayerWeaponId(GUNRIGHT);
 
     portGunEquipWatchModel(GUNLEFT, ITEM_SUIT_LF_HAND);
@@ -5028,7 +5027,6 @@ static void portOpenWatchImmediately(void)
 
 static void portCloseWatchImmediately(void)
 {
-    extern void portGunRestoreWatchModel(GUNHAND hand);
     extern void portWatchResetPage(void);
 
     portGunRestoreWatchModel(GUNLEFT);
@@ -5093,6 +5091,7 @@ void trigger_solo_watch_menu(s32 arg0)
         {
 #ifndef TARGET_N64
             sPortWatchOpenedInstantly = FALSE;
+            portGunBeginWatch();
 #endif
             watch_transition_time *= 1.1f;
             if (watch_transition_time > 1.7f)
