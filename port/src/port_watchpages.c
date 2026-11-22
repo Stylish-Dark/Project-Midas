@@ -131,7 +131,7 @@ static const struct PortWatchRowDef sPortOpts[] = {
     { PWROW_OPT,       "true_enemy_rockets", NULL, 0, 0 },
     { PWROW_OPT,       "unlimited_explosions", NULL, 0, 0 }, /* was folder-only */
     { PWROW_OPT,       "watch_static",       NULL, 0, 0 },   /* watch static */
-    { PWROW_OPT,       "fast_pause",         NULL, 0, 0 },   /* open the watch immediately */
+    { PWROW_OPT,       "fast_pause",         NULL, 0, 0 },   /* open and close the watch immediately */
     { PWROW_OPT,       "mouse_auto_aim",     NULL, 0, 0 },   /* the folder's row too */
     { PWROW_OPT,       "high_lod", "High Detail Models\n", 0, 0 },   /* from Graphics */
     { PWROW_OPT,       "setting_help",       NULL, 0, 0 },   /* the folder's help box; never drawn on the watch */

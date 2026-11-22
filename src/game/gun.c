@@ -1329,10 +1329,13 @@ void sub_GAME_7F05DAE4(GUNHAND hand) {
 }
 
 #ifndef TARGET_N64
-/* The instant watch needs its hand models in the same frame as the pause. */
-void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item)
+static void portGunLoadHandModelNow(GUNHAND hand, ITEM_IDS item)
 {
-    sub_GAME_7F05DA8C(hand, item);
+    if (g_CurrentPlayer->lock_hand_model[hand])
+    {
+        return;
+    }
+
     if (g_CurrentPlayer->hand_item[hand] != item)
     {
         g_CurrentPlayer->hand_invisible[hand] = -3;
@@ -1342,6 +1345,40 @@ void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item)
     {
         g_CurrentPlayer->hand_invisible[hand] = 0;
         g_CurrentPlayer->field_2A44[hand] = -1;
+    }
+}
+
+/* The instant watch needs its hand models in the same frame as the pause. */
+void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item)
+{
+    sub_GAME_7F05DA8C(hand, item);
+    portGunLoadHandModelNow(hand, item);
+}
+
+void portGunRestoreWatchModel(GUNHAND hand)
+{
+    struct hand *state = &g_CurrentPlayer->hands[hand];
+
+    if (state->weapon_current_animation == 0xE)
+    {
+        state->weapon_current_animation = 0;
+    }
+    if (state->weapon_action_state == GUN_ANIM_STATE_WATCH_LOWER
+        || state->weapon_action_state == GUN_ANIM_STATE_WATCH_SWAP
+        || state->weapon_action_state == GUN_ANIM_STATE_WATCH_RAISE)
+    {
+        state->weapon_action_state = GUN_ANIM_STATE_IDLE;
+        state->field_890 = 0.0f;
+        state->field_88C = 0;
+        state->field_92C = 0;
+    }
+
+    if (state->weaponnum_watchmenu >= 0)
+    {
+        const ITEM_IDS item = getCurrentPlayerWeaponId(hand);
+
+        sub_GAME_7F05DAE4(hand);
+        portGunLoadHandModelNow(hand, item);
     }
 }
 #endif

@@ -181,7 +181,7 @@ padN_stickmode.
                       |            | Needs 480 or more rendered lines (not
                       |            | Low Res 240 or Classic Mode)
   watch_static        | 1          | 0 removes the watch's static and sound
-  fast_pause          | 0          | 1 = pause and open the solo watch
+  fast_pause          | 0          | 1 = open and close the solo watch
                       |            | immediately
   show_fps            | 0          | 1 = frames per second in small digits
                       |            | in the top-left corner during play

@@ -3798,15 +3798,23 @@ bool bondViewIsPauseTransitioning(void) {
 
 
 #ifndef TARGET_N64
-/* The instant watch opens directly. Its close still uses Rare's fastest rate. */
+/* The faster rate is a fallback when a scripted hand lock delays opening. */
 #define WATCH_RATE_LEVEL_LOAD 0.9090909f   /* bondview_r.c, at every level load */
 #define WATCH_RATE_CAP        1.7f
+static s32 sPortWatchOpenedInstantly;
+
 static s32 bondviewFastPause(void)
 {
     extern s32 portFastPause(void);   /* video.c */
 
     return portFastPause();
 }
+
+static s32 portWatchUsesInstantClose(void)
+{
+    return sPortWatchOpenedInstantly || bondviewFastPause();
+}
+
 static f32 bondviewWatchRate(void)
 {
     return bondviewFastPause() ? WATCH_RATE_CAP : watch_transition_time;
@@ -4492,8 +4500,7 @@ static void portPauseBoxTick(void)
         p = opening ? (1.0f - powf(1.0f - e, 1.0f / PORT_PAUSEBOX_K)) : powf(e, 1.0f / PORT_PAUSEBOX_K);
         was_opening = opening;
     }
-    /* The instant opening snaps the box into place below. Keep the box in
-     * step with the faster arm and tilt when the watch closes. */
+    /* Keep the box in step if a hand lock forces an animated opening. */
     if (bondviewFastPause())
     {
         dt *= WATCH_RATE_CAP / WATCH_RATE_LEVEL_LOAD;
@@ -4947,6 +4954,12 @@ void bondviewWatchAnimationTick(void)
 #endif
         {
             sub_GAME_7F0A6A80();
+#ifndef TARGET_N64
+            if (g_CurrentPlayer->open_close_solo_watch_menu && portWatchUsesInstantClose())
+            {
+                trigger_solo_watch_menu(0);
+            }
+#endif
         }
     }
     else if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0xc)
@@ -5014,7 +5027,51 @@ static void portOpenWatchImmediately(void)
     g_CurrentPlayer->timer_1C4 = 0;
     g_CurrentPlayer->pausing_flag = TRUE;
     g_CurrentPlayer->field_21C = 1;
+    sPortWatchOpenedInstantly = TRUE;
     lvlSetControlsLockedFlag(TRUE);
+}
+
+static void portCloseWatchImmediately(void)
+{
+    extern void portGunRestoreWatchModel(GUNHAND hand);
+    extern void portWatchResetPage(void);
+
+    portGunRestoreWatchModel(GUNLEFT);
+    portGunRestoreWatchModel(GUNRIGHT);
+    portWatchResetPage();
+#ifdef GE_VIDEO
+    {
+        extern void portWatchMouseReset(void);
+        portWatchMouseReset();
+    }
+#endif
+
+    g_CurrentPlayer->vv_verta = g_CurrentPlayer->pause_starting_angle;
+    g_CurrentPlayer->speedverta = 0.0f;
+    g_CurrentPlayer->pause_state = 0;
+    g_CurrentPlayer->pause_transition_time = 0.0f;
+    g_CurrentPlayer->pause_transition_duration = 0.0f;
+    g_CurrentPlayer->step_in_view_watch_animation = 0;
+    g_CurrentPlayer->pause_animation_counter = 0.0f;
+    g_CurrentPlayer->pause_watch_related_adjust = 0.0f;
+    bondviewZoomFromWatchOnExit();
+    g_CurrentPlayer->zoomintime = g_CurrentPlayer->zoomintimemax;
+    bondviewUpdateWatchZoomIn();
+
+    gunSetSightVisible(GUNAMMOREASON_DAMAGE, TRUE);
+    gunSetGunAmmoVisible(GUNSIGHTREASON_NOCONTROL, TRUE);
+    hudmsgsSetOn(PLAYERFLAG_LOCKCONTROLS);
+    bondviewClearUpperTextDisplayFlag(PLAYERFLAG_LOCKCONTROLS);
+    countdownTimerSetVisible(4, 1);
+    sndPlaySfx(g_musicSfxBufferPtr, WATCH_OFF_SFX, NULL);
+
+    g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0x0;
+    g_CurrentPlayer->pausing_flag = FALSE;
+    g_CurrentPlayer->field_21C = 1;
+    g_portPauseBoxRaw = 0.0f;
+    g_portPauseBoxEased = 0.0f;
+    sPortWatchOpenedInstantly = FALSE;
+    lvlSetControlsLockedFlag(FALSE);
 }
 #endif
 
@@ -5035,6 +5092,9 @@ void trigger_solo_watch_menu(s32 arg0)
     {
         if (arg0 == 0)
         {
+#ifndef TARGET_N64
+            sPortWatchOpenedInstantly = FALSE;
+#endif
             watch_transition_time *= 1.1f;
             if (watch_transition_time > 1.7f)
             {
@@ -5151,10 +5211,17 @@ void trigger_solo_watch_menu(s32 arg0)
     {
         deleteCurrentSelectedFolder();
         sub_GAME_7F0C1340();
-        g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0xc;
         g_CurrentPlayer->watch_pause_time = 0;
         g_CurrentPlayer->timer_1C4 = 0;
         g_CurrentPlayer->open_close_solo_watch_menu = FALSE;
+#ifndef TARGET_N64
+        if (portWatchUsesInstantClose())
+        {
+            portCloseWatchImmediately();
+            return;
+        }
+#endif
+        g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0xc;
     }
     else if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0xc)
     {
