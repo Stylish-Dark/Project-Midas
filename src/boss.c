@@ -726,7 +726,7 @@ void bossMainloop(void)
 #ifndef TARGET_N64
                             {
                                 extern void portBondFastPauseBeforeTick(void);
-                                extern s32 portBondDeathFireHeld(void);
+                                extern s32 portBondDeathStartHeld(void);
                                 extern s32 g_ramromRecordFlag;
                                 const s32 liveMission = g_StageNum != LEVELID_TITLE
                                     && get_is_ramrom_flag() == 0 && g_ramromRecordFlag == 0;
@@ -735,7 +735,7 @@ void bossMainloop(void)
                                 {
                                     portBondFastPauseBeforeTick();
                                 }
-                                portScaleDeathTick(liveMission && portBondDeathFireHeld());
+                                portScaleDeathTick(liveMission && portBondDeathStartHeld());
                             }
 #endif
 

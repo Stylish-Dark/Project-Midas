@@ -1113,7 +1113,7 @@ static f32 portTickSmoothElapsed(f32 measured)
 #endif
 
 #ifndef TARGET_N64
-/* Accelerate game time after sampling Fire, while keeping the real-time
+/* Accelerate game time after sampling Start, while keeping the real-time
  * scheduler and renderer paced normally. Drop the extra fractional carry
  * on release so accelerated time cannot leak into gameplay or the menu. */
 void portScaleDeathTick(s32 active)

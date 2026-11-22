@@ -669,40 +669,11 @@ void solo_char_load(void)
 
 
 #ifndef TARGET_N64
-/* Read the remapped pad before gameplay suppresses weapon input on death.
- * Control styles 2.3 and 2.4 shoot from their second pad. */
-s32 portBondDeathFireHeld(void)
+/* Use the held Start binding even while normal gameplay input is locked. */
+s32 portBondDeathStartHeld(void)
 {
-    s32 style;
-    u16 fire;
-
-    if (getPlayerCount() != 1 || g_CurrentPlayer == NULL || !g_CurrentPlayer->bonddead)
-    {
-        return FALSE;
-    }
-
-    style = cur_player_get_control_type();
-    if (style == CONTROLLER_CONFIG_DOMINO || style == CONTROLLER_CONFIG_GOODHEAD)
-    {
-        extern s32 portInputSecondPadIndex(s32 playernum, s32 fam);
-        extern s32 portJoyTwinStickRead(s32 pad, s8 *x, s8 *y, s32 muteC, s32 lookOnPad1);
-        const s32 second = portInputSecondPadIndex(PLAYER_1, style - CONTROLLER_CONFIG_PLENTY);
-        s8 x, y;
-
-        if (second >= 0)
-        {
-            return joyGetButtons(second, Z_TRIG) != 0;
-        }
-        if (portJoyTwinStickRead(PLAYER_1, &x, &y, FALSE, FALSE))
-        {
-            return joyGetButtons(PLAYER_1, R_TRIG) != 0;
-        }
-        return joyGetButtons(PLAYER_1 + 1, Z_TRIG) != 0;
-    }
-
-    fire = (style == CONTROLLER_CONFIG_KISSY || style == CONTROLLER_CONFIG_GOODNIGHT)
-        ? A_BUTTON : Z_TRIG;
-    return joyGetButtons(PLAYER_1, fire) != 0;
+    return getPlayerCount() == 1 && g_CurrentPlayer != NULL
+        && g_CurrentPlayer->bonddead && joyGetButtons(PLAYER_1, START_BUTTON) != 0;
 }
 #endif
 
@@ -1716,7 +1687,7 @@ void bondviewFrozenCameraTick(u16 buttons, u16 oldbuttons, struct coord3d *pos, 
 
             if ((buttons & ~oldbuttons & (CONT_A | B_BUTTON | Z_TRIG | START_BUTTON))
 #ifndef TARGET_N64
-                && (get_is_ramrom_flag() != 0 || !portBondDeathFireHeld())
+                && (get_is_ramrom_flag() != 0 || !portBondDeathStartHeld())
 #endif
                 && (g_CurrentPlayer->bonddead)
                 && (g_CurrentPlayer->redbloodfinished)
