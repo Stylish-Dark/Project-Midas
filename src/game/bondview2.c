@@ -3806,8 +3806,9 @@ static s32 sPortWatchOpenedInstantly;
 static s32 bondviewFastPause(void)
 {
     extern s32 portFastPause(void);   /* video.c */
+    extern s32 g_ramromRecordFlag;
 
-    return portFastPause();
+    return g_ramromRecordFlag == 0 && portFastPause();
 }
 
 static s32 portWatchUsesInstantClose(void)
@@ -4954,12 +4955,6 @@ void bondviewWatchAnimationTick(void)
 #endif
         {
             sub_GAME_7F0A6A80();
-#ifndef TARGET_N64
-            if (g_CurrentPlayer->open_close_solo_watch_menu && portWatchUsesInstantClose())
-            {
-                trigger_solo_watch_menu(0);
-            }
-#endif
         }
     }
     else if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0xc)
@@ -5039,6 +5034,10 @@ static void portCloseWatchImmediately(void)
     portGunRestoreWatchModel(GUNLEFT);
     portGunRestoreWatchModel(GUNRIGHT);
     portWatchResetPage();
+    /* The animated exit normally restores these in draw_watch_current_page.
+     * An instant exit skips that draw, so restore the world render flag here. */
+    sub_GAME_7F0BD8FC(TRUE);
+    set_BONDdata_outside_watch_menu_flag(TRUE);
 #ifdef GE_VIDEO
     {
         extern void portWatchMouseReset(void);
@@ -5288,7 +5287,8 @@ void trigger_solo_watch_menu(s32 arg0)
 }
 
 #ifndef TARGET_N64
-/* Run after sampling input and before lvlTick advances guards or shots. */
+/* Apply both transitions before lvlTick samples the controls lock and
+ * before the player update builds the viewport for this frame. */
 void portBondFastPauseBeforeTick(void)
 {
     extern s32 portEscPressed(void);
@@ -5298,7 +5298,19 @@ void portBondFastPauseBeforeTick(void)
     s32 objectives;
     s32 escape;
 
-    if (getPlayerCount() != 1 || g_CurrentPlayer == NULL || g_CurrentPlayer->bonddead
+    if (getPlayerCount() != 1 || g_CurrentPlayer == NULL)
+    {
+        return;
+    }
+
+    if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5
+        && g_CurrentPlayer->open_close_solo_watch_menu && portWatchUsesInstantClose())
+    {
+        trigger_solo_watch_menu(0);
+        return;
+    }
+
+    if (g_CurrentPlayer->bonddead
         || g_CurrentPlayer->watch_animation_state != WATCH_ANIMATION_0x0
         || (g_CameraMode != CAMERAMODE_NONE
             && (g_CameraMode != CAMERAMODE_FP || !is_timer_active))
@@ -6928,7 +6940,11 @@ void bondviewProcessInput(s8 stick_x, s8 stick_y, u16 buttons, u16 oldbuttons)
             )
             ||
             (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5
-                && g_CurrentPlayer->open_close_solo_watch_menu)
+                && g_CurrentPlayer->open_close_solo_watch_menu
+#ifndef TARGET_N64
+                && !portWatchUsesInstantClose() /* applied before the next level tick */
+#endif
+            )
         )
         && (getPlayerCount() == 1))
     {
