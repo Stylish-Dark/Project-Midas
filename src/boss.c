@@ -723,6 +723,22 @@ void bossMainloop(void)
 			                	g_BossIsDebugMenuOpen = debug_menu_processor(joyStickXPos, joyStickYPos, joyButtons, joyGetButtonsPressedThisFrame(0, ANY_BUTTON));
 			                }
 
+#ifndef TARGET_N64
+                            {
+                                extern void portBondFastPauseBeforeTick(void);
+                                extern s32 portBondDeathFireHeld(void);
+                                extern s32 g_ramromRecordFlag;
+                                const s32 liveMission = g_StageNum != LEVELID_TITLE
+                                    && get_is_ramrom_flag() == 0 && g_ramromRecordFlag == 0;
+
+                                if (liveMission)
+                                {
+                                    portBondFastPauseBeforeTick();
+                                }
+                                portScaleDeathTick(liveMission && portBondDeathFireHeld());
+                            }
+#endif
+
                             // Primary game tick function.
                             lvlTick();
 

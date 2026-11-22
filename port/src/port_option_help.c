@@ -29,7 +29,7 @@ static const struct PortOptHelp sHelp[] = {
     { "true_enemy_rockets", "Enemy Rockets cheat stops guards keeping their old guns." },
     { "unlimited_explosions", "Up to 100 explosions at once." },
     { "watch_static",       "Shows the watch screen's static." },
-    { "fast_pause",         "Watch opens and closes at full speed." },
+    { "fast_pause",         "Pauses and opens the watch immediately." },
     { "mouse_auto_aim",     "Lets Auto-Aim work with the mouse." },
     { "high_lod",           "Always draws the most detailed models." },
     { "setting_help",       "Shows this help box." },

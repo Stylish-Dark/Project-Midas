@@ -130,7 +130,7 @@ static int s_CfgMpHeadRoll = 1;     /* [display] mp_head_roll: the camera rolls 
 static int s_CfgMpUnlimitedExplosions = 1; /* [display] mp_unlimited_explosions: 100 live explosions, not 6, 2+ players (explosion.c) */
 static int s_CfgUnlimitedExplosions = 1;   /* [display] unlimited_explosions: the same, solo (Port Options, default ON) */
 static int s_CfgWatchStatic = 1;
-static int s_CfgFastPause = 0;     /* [display] fast_pause: the watch opens and closes at Rare's top speed (bondview2.c) */
+static int s_CfgFastPause = 0;     /* [display] fast_pause: open the solo watch immediately (bondview2.c) */
 static int s_CfgMouseAutoAim = 0;   /* [display] mouse_auto_aim: 1 lets a mouse player use Auto-Aim (default: never) */
 static int s_CfgMuteUnfocused = 0; /* [display] mute_unfocused: audio_pc.c plays silence while the window has no focus */
 static int s_CfgArmorHud = 0;       /* [display] armor_hud: the health / armour arcs show on a body armour pickup (bondview2.c) */
@@ -361,8 +361,7 @@ s32 portWatchStatic(void)
     return s_CfgWatchStatic;
 }
 
-/** [display] fast_pause: bondview2.c runs the watch's open and close at 1.7, the cap Rare's
- * watch_transition_time grows to. Never in demo playback. */
+/** [display] fast_pause: open the solo watch immediately. Never in demo playback. */
 s32 portFastPause(void)
 {
     extern s32 get_is_ramrom_flag(void);

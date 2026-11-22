@@ -1328,6 +1328,24 @@ void sub_GAME_7F05DAE4(GUNHAND hand) {
     }
 }
 
+#ifndef TARGET_N64
+/* The instant watch needs its hand models in the same frame as the pause. */
+void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item)
+{
+    sub_GAME_7F05DA8C(hand, item);
+    if (g_CurrentPlayer->hand_item[hand] != item)
+    {
+        g_CurrentPlayer->hand_invisible[hand] = -3;
+        used_to_load_1st_person_model_on_demand(hand);
+    }
+    else
+    {
+        g_CurrentPlayer->hand_invisible[hand] = 0;
+        g_CurrentPlayer->field_2A44[hand] = -1;
+    }
+}
+#endif
+
 
 void currentPlayerUnEquipWeaponWrapper(enum GUNHAND hand, enum ITEM_IDS weapid)
 {

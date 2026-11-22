@@ -27,6 +27,7 @@ extern s32 frameDelay;
  * recording). */
 extern f32 portTickDelta;
 extern s32 portTickCadence;
+void portScaleDeathTick(s32 active);
 /* Smoothed presentation stats, written by gfx_sdl2's title-stat pass
  * (500ms window) for the midas.ini show_fps in-game overlay. 0 headless. */
 extern s32 g_PortStatFps;

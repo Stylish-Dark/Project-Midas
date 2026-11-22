@@ -263,8 +263,7 @@ static const struct PortOpt sOpts[] = {
                                                                                               * Auto-Aim, whatever else says (video.c) */
     TOGGLE("watch_static",       "[display]", "Watch Static\n",       PORTOPT_CAT_GAMEPLAY), /* Port Options; the watch screen's static
                                                                                               * effect */
-    TOGGLE("fast_pause",         "[display]", "Fast Pause\n",         PORTOPT_CAT_GAMEPLAY), /* Port Options; the watch at Rare's top
-                                                                                              * speed, 1.7 */
+    TOGGLE("fast_pause",         "[display]", "Fast Pause\n",         PORTOPT_CAT_GAMEPLAY), /* open the solo watch immediately */
     TOGGLE("armor_hud",          "[display]", "Armor Pickup HUD\n",   PORTOPT_CAT_GAMEPLAY), /* HUD; the health / armour arcs show on a
                                                                                               * body armour pickup, as on XBLA */
     /* multiplayer-only cheats, unlocked from the start and never applied in solo (lv.c);

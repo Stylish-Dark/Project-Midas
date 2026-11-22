@@ -1112,6 +1112,67 @@ static f32 portTickSmoothElapsed(f32 measured)
 }
 #endif
 
+#ifndef TARGET_N64
+/* Accelerate game time after sampling Fire, while keeping the real-time
+ * scheduler and renderer paced normally. Drop the extra fractional carry
+ * on release so accelerated time cannot leak into gameplay or the menu. */
+void portScaleDeathTick(s32 active)
+{
+    static f32 carry;
+    static s32 wasActive;
+    f32 extra;
+    s32 fields;
+
+    if (!active)
+    {
+        if (wasActive && speedgraphframes == 0)
+        {
+            portTickCadence = 1;
+        }
+        wasActive = 0;
+        carry = 0.0f;
+        return;
+    }
+
+    wasActive = 1;
+
+    /* Cap a long frame at 30 simulated fields during fast-forward. */
+    extra = portTickDelta * 14.0f;
+    if (extra > 30.0f - portTickDelta)
+    {
+        extra = 30.0f - portTickDelta;
+    }
+    if (extra <= 0.0f)
+    {
+        return;
+    }
+
+    portTickDelta += extra;
+    carry += extra;
+    fields = (s32) carry;
+    carry -= fields;
+    speedgraphframes += fields;
+    currentFrameCounter += fields;
+    halfFrameCounter = currentFrameCounter / 2;
+    halfMinusPreviousCounter = halfFrameCounter - previousFrameCounter;
+    isFrameCounterOdd = currentFrameCounter & 1;
+
+    if (speedgraphframes > 0)
+    {
+        portTickCadence = speedgraphframes;
+    }
+#ifdef BUGFIX_R1
+    jpD_800484CC = (f32) speedgraphframes;
+#ifdef REFRESH_PAL
+    jpD_800484D0 = jpD_800484CC * 1.2f;
+#else
+    jpD_800484D0 = jpD_800484CC;
+#endif
+#endif
+}
+#endif
+
+
 /**
  * Waits until the appropriate time has passed before updating the frame counters.
  * This function effectively controls the frame rate by waiting for the next tick.

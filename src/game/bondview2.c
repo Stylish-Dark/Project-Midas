@@ -668,6 +668,45 @@ void solo_char_load(void)
 }
 
 
+#ifndef TARGET_N64
+/* Read the remapped pad before gameplay suppresses weapon input on death.
+ * Control styles 2.3 and 2.4 shoot from their second pad. */
+s32 portBondDeathFireHeld(void)
+{
+    s32 style;
+    u16 fire;
+
+    if (getPlayerCount() != 1 || g_CurrentPlayer == NULL || !g_CurrentPlayer->bonddead)
+    {
+        return FALSE;
+    }
+
+    style = cur_player_get_control_type();
+    if (style == CONTROLLER_CONFIG_DOMINO || style == CONTROLLER_CONFIG_GOODHEAD)
+    {
+        extern s32 portInputSecondPadIndex(s32 playernum, s32 fam);
+        extern s32 portJoyTwinStickRead(s32 pad, s8 *x, s8 *y, s32 muteC, s32 lookOnPad1);
+        const s32 second = portInputSecondPadIndex(PLAYER_1, style - CONTROLLER_CONFIG_PLENTY);
+        s8 x, y;
+
+        if (second >= 0)
+        {
+            return joyGetButtons(second, Z_TRIG) != 0;
+        }
+        if (portJoyTwinStickRead(PLAYER_1, &x, &y, FALSE, FALSE))
+        {
+            return joyGetButtons(PLAYER_1, R_TRIG) != 0;
+        }
+        return joyGetButtons(PLAYER_1 + 1, Z_TRIG) != 0;
+    }
+
+    fire = (style == CONTROLLER_CONFIG_KISSY || style == CONTROLLER_CONFIG_GOODNIGHT)
+        ? A_BUTTON : Z_TRIG;
+    return joyGetButtons(PLAYER_1, fire) != 0;
+}
+#endif
+
+
 /**
  * Address 0x7F07A4A0.
  */
@@ -1676,6 +1715,9 @@ void bondviewFrozenCameraTick(u16 buttons, u16 oldbuttons, struct coord3d *pos, 
             }
 
             if ((buttons & ~oldbuttons & (CONT_A | B_BUTTON | Z_TRIG | START_BUTTON))
+#ifndef TARGET_N64
+                && (get_is_ramrom_flag() != 0 || !portBondDeathFireHeld())
+#endif
                 && (g_CurrentPlayer->bonddead)
                 && (g_CurrentPlayer->redbloodfinished)
                 && (g_CurrentPlayer->deathanimfinished))
@@ -3756,8 +3798,7 @@ bool bondViewIsPauseTransitioning(void) {
 
 
 #ifndef TARGET_N64
-/* The watch's open and close rate. Port Options' Fast Pause uses 1.7, the cap that
- * trigger_solo_watch_menu grows watch_transition_time to on each open. */
+/* The instant watch opens directly. Its close still uses Rare's fastest rate. */
 #define WATCH_RATE_LEVEL_LOAD 0.9090909f   /* bondview_r.c, at every level load */
 #define WATCH_RATE_CAP        1.7f
 static s32 bondviewFastPause(void)
@@ -4451,15 +4492,14 @@ static void portPauseBoxTick(void)
         p = opening ? (1.0f - powf(1.0f - e, 1.0f / PORT_PAUSEBOX_K)) : powf(e, 1.0f / PORT_PAUSEBOX_K);
         was_opening = opening;
     }
-    /* Fast Pause: keep pace with the faster arm and tilt. The 95 and 60 tick spans
-     * below were measured at the level-load rate; the ratio is against that, not
-     * the still-growing watch_transition_time, so the box runs the same on every
-     * pause of a level (the watch itself holds at the cap). */
+    /* The instant opening snaps the box into place below. Keep the box in
+     * step with the faster arm and tilt when the watch closes. */
     if (bondviewFastPause())
     {
         dt *= WATCH_RATE_CAP / WATCH_RATE_LEVEL_LOAD;
     }
     if (getPlayerCount() != 1)       { p = 0.0f; }
+    else if (st == WATCH_ANIMATION_0x5 && bondviewFastPause()) { p = 1.0f; }
     else if (st >= 1 && st <= 4)     { p += dt / 95.0f; }   /* press -> menu loaded */
     else if (st == 5 || st >= 9)     { p += 0.1f; }         /* open: settle to 1 (g_GlobalTimerDelta is 0 while the menu is up) */
     else if (st == 6)                { /* hold through the zoom-out from the face */ }
@@ -4515,6 +4555,10 @@ void bondviewWatchAnimationTick(void)
     f32 sp28;
     f32 sp24;
     f32 sp20;
+#ifndef TARGET_N64
+    const s32 justOpened = g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5
+        && g_CurrentPlayer->watch_pause_time == 0;
+#endif
 
     if (g_CurrentPlayer->watch_animation_state)
     {
@@ -4897,7 +4941,13 @@ void bondviewWatchAnimationTick(void)
     if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5)
     {
         lvlSetControlsLockedFlag(TRUE);
-        sub_GAME_7F0A6A80();
+#ifndef TARGET_N64
+        /* The opening Start edge must not close the watch on the same tick. */
+        if (!justOpened)
+#endif
+        {
+            sub_GAME_7F0A6A80();
+        }
     }
     else if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0xc)
     {
@@ -4917,6 +4967,56 @@ void set_open_close_solo_watch_menu_to1(void)
 {
     g_CurrentPlayer->open_close_solo_watch_menu = TRUE;
 }
+
+
+#ifndef TARGET_N64
+static s32 portCanOpenWatchImmediately(void)
+{
+    return bondviewFastPause()
+        && !g_CurrentPlayer->lock_hand_model[GUNLEFT]
+        && !g_CurrentPlayer->lock_hand_model[GUNRIGHT];
+}
+
+static void portOpenWatchImmediately(void)
+{
+    extern void portGunEquipWatchModel(GUNHAND hand, ITEM_IDS item);
+    const ITEM_IDS right = getCurrentPlayerWeaponId(GUNRIGHT);
+
+    portGunEquipWatchModel(GUNLEFT, ITEM_SUIT_LF_HAND);
+    if (right == ITEM_TRIGGER || right == ITEM_WATCHLASER)
+    {
+        portGunEquipWatchModel(GUNRIGHT, ITEM_UNARMED);
+    }
+    sub_GAME_7F07E7CC();
+    g_CurrentPlayer->pause_animation_counter = 20.0f;
+    g_CurrentPlayer->pause_watch_related_adjust = 20.0f;
+    g_CurrentPlayer->step_in_view_watch_animation = 3;
+    modelSetAnimFrame2((Model *)&g_CurrentPlayer->something_with_watch_object_instance, 20.0f, 0.0f);
+
+    bondviewSetupPauseTransition(TRUE);
+    g_CurrentPlayer->pause_saved_verta = g_CurrentPlayer->pause_starting_angle;
+    g_CurrentPlayer->vv_verta = g_CurrentPlayer->pause_target_verta;
+    g_CurrentPlayer->pause_state = 3;
+
+    bondviewZoomToWatchOnOpen();
+    g_CurrentPlayer->zoomintime = g_CurrentPlayer->zoomintimemax;
+    bondviewUpdateWatchZoomIn();
+
+    gunSetSightVisible(GUNAMMOREASON_DAMAGE, FALSE);
+    gunSetGunAmmoVisible(GUNSIGHTREASON_NOCONTROL, FALSE);
+    hudmsgsSetOff(PLAYERFLAG_LOCKCONTROLS);
+    bondviewSetUpperTextDisplayFlag(PLAYERFLAG_LOCKCONTROLS);
+    countdownTimerSetVisible(4, 0);
+    sndPlaySfx(g_musicSfxBufferPtr, WATCH_ON_SFX, NULL);
+
+    g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0x5;
+    g_CurrentPlayer->watch_pause_time = 0;
+    g_CurrentPlayer->timer_1C4 = 0;
+    g_CurrentPlayer->pausing_flag = TRUE;
+    g_CurrentPlayer->field_21C = 1;
+    lvlSetControlsLockedFlag(TRUE);
+}
+#endif
 
 
 /**
@@ -5005,8 +5105,24 @@ void trigger_solo_watch_menu(s32 arg0)
             /**
              * End watch static section.
             */
+#ifndef TARGET_N64
+            if (portCanOpenWatchImmediately())
+            {
+                portOpenWatchImmediately();
+            }
+#endif
         }
     }
+#ifndef TARGET_N64
+    else if (arg0 == 0 && portCanOpenWatchImmediately()
+        && (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x6
+         || g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x7
+         || g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x8))
+    {
+        sub_GAME_7F0A69A8();
+        portOpenWatchImmediately();
+    }
+#endif
     else if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x1)
     {
         g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0x9;
@@ -5103,6 +5219,42 @@ void trigger_solo_watch_menu(s32 arg0)
         g_CurrentPlayer->watch_animation_state = WATCH_ANIMATION_0x0;
     }
 }
+
+#ifndef TARGET_N64
+/* Run after sampling input and before lvlTick advances guards or shots. */
+void portBondFastPauseBeforeTick(void)
+{
+    extern s32 portEscPressed(void);
+    extern s32 portReturnStartThisTick(void);
+    extern s32 portJoyPortWatchObjectivesPressed(s32 pad);
+    extern void portWatchRequestPage(s32 page);
+    s32 objectives;
+    s32 escape;
+
+    if (getPlayerCount() != 1 || g_CurrentPlayer == NULL || g_CurrentPlayer->bonddead
+        || g_CurrentPlayer->watch_animation_state != WATCH_ANIMATION_0x0
+        || (g_CameraMode != CAMERAMODE_NONE
+            && (g_CameraMode != CAMERAMODE_FP || !is_timer_active))
+        || lvlGetControlsLockedFlag() || g_bondviewForceDisarm > 0
+        || !portCanOpenWatchImmediately())
+    {
+        return;
+    }
+
+    objectives = portJoyPortWatchObjectivesPressed(PLAYER_1);
+    escape = portEscPressed();
+    if (objectives || escape
+        || (joyGetButtonsPressedThisFrame(PLAYER_1, START_BUTTON) && !portReturnStartThisTick()))
+    {
+        if (objectives)
+        {
+            portWatchRequestPage(WATCH_INDEX_MISSION_BRIEFING);
+        }
+        trigger_solo_watch_menu(0);
+    }
+}
+#endif
+
 
 /**
  * US address 7F07FCC4.
@@ -12833,6 +12985,9 @@ Gfx *maybe_mp_interface(Gfx *gdl)
 
     if (g_CurrentPlayer->bonddead != 0)
     {
+#ifndef TARGET_N64
+        static f32 soloBloodFields;
+#endif
         if (g_CurrentPlayer->deathanimfinished == 0)
         {
             doblood = 0;
@@ -12843,6 +12998,9 @@ Gfx *maybe_mp_interface(Gfx *gdl)
             }
             if (doblood)
             {
+#ifndef TARGET_N64
+                soloBloodFields = 0.0f;
+#endif
                 die_blood_image_routine(0);
                 if (getPlayerCount() == 1)
                 {
@@ -12876,6 +13034,23 @@ Gfx *maybe_mp_interface(Gfx *gdl)
                         doblood = 2;
                     }
 #ifndef TARGET_N64
+                    if (getPlayerCount() == 1 && get_is_ramrom_flag() == 0)
+                    {
+                        /* The death clock can advance several blood frames per
+                         * render. Decode the due frames and draw only the last. */
+                        s32 frames;
+
+                        soloBloodFields += g_GlobalTimerDelta;
+                        frames = (s32) (soloBloodFields * 0.5f);
+                        soloBloodFields -= 2.0f * frames;
+                        if (frames > 0 && portDeathBloodAdvance(frames))
+                        {
+                            g_CurrentPlayer->redbloodfinished = TRUE;
+                        }
+                        gdl = gameplayBloodOverlayDL(gdl);
+                        goto blood_frame_held;
+                    }
+
                     /* PORT: this runs once per rendered frame, so the death blood
                      * animation sped up with the frame rate. portBloodFrameDue
                      * (blood_animation.c) paces it at 30fps of real time, and

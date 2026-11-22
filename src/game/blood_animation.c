@@ -253,7 +253,11 @@ s32 portBloodFrameDue(u32 *stamp)
 }
 #endif
 
+#ifndef TARGET_N64
+static s32 bloodDecodeFrames(s32 arg0, s32 frames) {
+#else
 s32 die_blood_image_routine(s32 arg0) {
+#endif
    s8 sp37;
    u8* temp_v0_2;
 
@@ -269,6 +273,12 @@ s32 die_blood_image_routine(s32 arg0) {
    g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx] = dynAllocate(BLOOD_IMG_WIDTH * BLOOD_IMG_HEIGHT);
    temp_v0_2 = dynAllocate(BLOOD_IMG_WIDTH * BLOOD_IMG_HEIGHT);
    g_CurrentPlayer->bloodImgNxt = decrypt_bleeding_animation_data(g_CurrentPlayer->bloodImgCur, BLOOD_IMG_WIDTH, BLOOD_IMG_HEIGHT, temp_v0_2, &sp37);
+#ifndef TARGET_N64
+   while (--frames > 0 && g_CurrentPlayer->bloodImgNxt < &die_blood_image_end) {
+      g_CurrentPlayer->bloodImgCur = g_CurrentPlayer->bloodImgNxt;
+      g_CurrentPlayer->bloodImgNxt = decrypt_bleeding_animation_data(g_CurrentPlayer->bloodImgCur, BLOOD_IMG_WIDTH, BLOOD_IMG_HEIGHT, temp_v0_2, &sp37);
+   }
+#endif
    bloodImgTranspose(temp_v0_2, BLOOD_IMG_WIDTH, BLOOD_IMG_HEIGHT, g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx]);
    sub_GAME_7F01D02C(g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx], BLOOD_IMG_WIDTH, g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx]);
    sub_GAME_7F01CEEC(g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx], BLOOD_IMG_WIDTH, g_CurrentPlayer->bloodImgBufPtrArray[g_CurrentPlayer->bloodImgIdx]);
@@ -288,6 +298,16 @@ s32 die_blood_image_routine(s32 arg0) {
 
 
 #ifndef TARGET_N64
+s32 die_blood_image_routine(s32 arg0)
+{
+   return bloodDecodeFrames(arg0, 1);
+}
+
+s32 portDeathBloodAdvance(s32 frames)
+{
+   return bloodDecodeFrames(1, frames);
+}
+
 /* PORT: mirror this overlay into the wide side bands (renderer:
  * gfx_ge_draw_rect_mirrored), giving | mirrored | native | mirrored |. It is
  * marker-driven so it cannot catch the frontend's full-screen logo/legal rects,
